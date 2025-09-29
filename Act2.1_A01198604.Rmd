@@ -1,0 +1,161 @@
+---
+title: "Actividad 2.1"
+author: "Miguel Angel González Gutiérrez"
+date: "2025-09-23"
+output: pdf_document
+---
+
+# Actividad 2.1 Regresión lineal
+```{r}
+#Cargar paquetes
+library(tinytex)
+library(lmtest)
+```
+
+## 1. Análisis exploratorio
+```{r}
+M <- mtcars
+head(M)
+str(M)
+```
+```{r}
+D <- subset(M, select = c('mpg', 'cyl', 'disp', 'hp', 'drat', 'wt', 'qsec'))
+head(D)
+```
+
+Selecciona millas por galón como variable dependiente y acota tu base de datos con las variables que desees explorar (mínimo 4) y desarrolle los siguientes puntos:
+
+**A) Gráficos de dispersión**
+```{r}
+plot(D)
+```
+A partir de visualizar el gráfico de disperión, la variable $mpg$ puede tener una correlación lineal positiva con las variables $drat$ y $qsec$, mientras que con el resto de las variables se muestra una correlación lineal negativa
+
+**B) La matriz de varianzas y covarianzas**
+```{r}
+cov(D)
+```
+
+**C) La matriz de correlación**
+```{r}
+cor(D)
+```
+
+
+**D) Seleccione una variable predictora y argumente la selección de su variable independiente**
+
+A partir de la matriz de correlaciones se corroboran las observaciones preliminares del gráfico de dispersión. Se propondrá la variable $wt$ como variable predictora, puesto que guarda una relación lineal muy fuerte negativa con la variable $mpg$
+
+
+## 2. Método de mínimos cuadrados
+```{r}
+X <- D$wt
+Y <- D$mpg
+b1 <- cov(X,Y)/var(X)
+b0 <- mean(Y)-b1*mean(X)
+  
+cat("El modelo de regresion lineal esta dado por: Y=", b0, "+ ", b1,"*X")
+```
+
+## 3. Regresión lineal en R
+```{r}
+reg <- lm(Y~X)
+summary(reg)
+cat('El modelo de regresión lineal está dado por y = ', reg$coefficients[1], ' + ', reg$coefficients[2],'*x\n', sep= '')
+```
+Se corrobora que se llega a la misma solución tanto por metodo de rl en R y por metodo de minimos cuadrados
+
+## 4. Representación gráfica
+```{r}
+plot(X, Y, col = 'blue', main = 'Regesión Lineal wt vs. mpg', xlab = 'Peso (1000 lbs)', ylab = 'Millas por galón')
+abline(reg, col = 'red')
+text(4, 25, 'y=37.28513 - 5.34472*x')
+```
+Al comparar la distribución de $mpg$ contra $wt$, se observa que sigue un patrón con correlación negativa, pero con valores dispersos de la línea de tendencia.
+
+## 5. Coeficiente de determinación
+```{r}
+summary(reg)
+```
+El modelo lineal elegido obtuvo un 0.753 como coeficiente de determinación, lo que significa que el modelo tiene una buena capacidad para explicar los datos, con un 75.3% de la variabilidad siendo significativa. No obstante, esto no es suficiente para determinar que existe causalidad entre las variables $mpg$ y $wt$.
+
+## 6. Validación del modelo
+
+**Significancia de los coeficientes de regresión**
+
+En esta sección evaluaremos si la relación de las variables $mpg$ y $wt$ es significativa. La prueba de hipótesis que se contrasta:
+
+$H_0: \beta_1 = 0$
+$H_1: \beta_1 \neq 0$
+
+Se utilizará un valor p de $\alpha = 0.05$
+```{r}
+summary(reg)
+```
+Como el p valor es menor a 0.05, se rechaza la hipótesis nula y por lo tanto podemos justificar la presencia de la variable $wt$ en el modelo por su relación significativa con $mpg$.
+
+**Linealidad**
+
+Este supuesto evalúa que la relación entre las variables dependiente e independiente sea lineal.
+
+Gráficamente, observaremos el comportamiento de los residuales contra los valores predichos.
+```{r}
+plot(reg$fitted.values, reg$residuals, main = 'Residuos vs valores predichos')
+abline(h = 0, col = 'red')
+```
+Es observable la dispersión de los datos alrededor de los valores predichos ante el comportamiento de los residuales.
+
+Realizaremos la prueba Reset de Ramsey para validar este supuesto en donde
+
+$H_0:$ La forma funcional es correcta
+$H_1:$ La forma funcional no es correcta, el modelo tiene error de especificación
+
+```{r}
+resettest(reg)
+```
+Al no tener evidencia suficiente, en base a Reset de Ramsey, se puede determinar que la forma funcional no es correcta, y que es posible que presente un error de especificación. Esto es un indicio de que en el modelo, harían falta incluir otras variables o que este modelo sigue una relación no lineal.
+
+**Media cero de los residuos**
+
+Este supuesto ayuda a conocer si la distribución puede seguir una distribución con media centrada en cero, lo que facilitaría la predicción del modelo.
+```{r}
+shapiro.test(reg$residuals)
+```
+En base a Shapiro-Wilk, no se tiene evidencia suficiente para rechazar $H_0$, por lo que es probable que la distribución de los residuos siga una distribución normal.
+
+```{r}
+qqnorm(reg$residuals)
+qqline(reg$residuals, col = "blue")
+```
+```{r}
+hist(reg$residuals)
+```
+
+**Homocedasticidad**
+
+Este supuesto ayuda a analizar si el modelo lineal sigue una varianza constante a lo largo de todos los valores de la variable independiente. 
+```{r}
+bptest(reg)
+```
+```{r}
+bptest(reg, ~ fitted(reg) + I(fitted(reg)^2))
+```
+
+Ambas pruebas no cuentan con evidencia suficiente para rechazar la hipótesis nula, por lo que es probable que exista homocedasticidad en la distribución de la variable independiente $wt$; la distribución de esta variable sigue una varianza aproximadamente constante.
+
+**Independencia**
+
+El analizar este supuesto nos es útil para identificar si el modelo tiene independencia entre las observaciones recabadas; en caso de mostrar dependencia, los valores del modelo podrían estar sesgados, y el modelo no sería preciso.
+
+```{r}
+dwtest(reg)
+```
+```{r}
+plot(reg$residuals)
+abline(h=0, col = "red", lwd = 2)
+```
+
+La prueba de Durbin-Watson indica que existe evidencia suficiente para rechazar la independencia en el modelo.
+
+## 7. Conclusiones
+Tras haber sido realizado el análisis de un modelo de regresión lineal simple, el cual busca encontrar relaciones lineales entre dos variables, independiente y dependiente, he llegado a la conclusión que no es certero elegir el peso del auto (variable $wt$) para predecir la cantidad de millas por galón recorridas (variable $mpg$), dentro del conjunto de datos de *mtcars*. El analizar la relación entre estas variables fue de valor, ya que nació de observar un posible comportamiento relacionado. Sin embargo, tras haber analizado otros supuestos inherentes a un modelo de regresión lineal simple, determino que no existe prueba suficiente para indicar que existe relación entre estas dos variables. Aunque para eso sirva la estadística, para encontrar relaciones que no se imaginan que existen, sí me parece lejano de imaginar que se pueda conocer el mileaje por galon, conociendo únicamente el peso del automóvil. Supuestos como la independencia y la linealidad, nos sirven como indicios de que la variable $wt$ presenta correlación con otra variable (en retrospectiva, sí presenta una correlación con $disp$, la cilindrada del motor), y que posiblemente se pueda obtener un mejor modelo predictorio, pero con un modelo no lineal de más de una variable independiente. Aunque sí exista una relación entre $mpg$ y $wt$, esta no es lo suficientemente fuerte y directa como para elaborar un modelo predictorio.
